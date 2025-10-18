@@ -3,25 +3,12 @@
 import React from "react";
 import { useDashboardStore } from "./hooks/useDashboardStore";
 import Sidebar from "./Components/layout/Sidebar";
-import AdminPanel from "./panels/AdminPanel";
-import JuryPanel from "./panels/JuryPanel";
-import UserPanel from "./panels/UserPanel";
+import UnifiedPanel from "./panels/UnifiedPanel";
 
 export default function Page() {
   const { role, darkMode } = useDashboardStore();
 
-  const renderPanel = () => {
-    switch (role) {
-      case "admin":
-        return <AdminPanel />;
-      case "jury":
-        return <JuryPanel />;
-      case "user":
-        return <UserPanel />;
-      default:
-        return <div className="p-6">No role selected</div>;
-    }
-  };
+  const renderPanel = () => <UnifiedPanel />;
 
   return (
     <div
@@ -30,9 +17,7 @@ export default function Page() {
       }`}
     >
       <Sidebar />
-      <main className="flex-1 p-6 overflow-y-auto">
-        {renderPanel()}
-      </main>
+      <main className="flex-1 p-6 overflow-y-auto">{renderPanel()}</main>
     </div>
   );
 }

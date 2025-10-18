@@ -1,16 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useDashboardStore } from "../hooks/useDashboardStore";
+import { useMemo, useState } from "react";
+import { useDashboardStore } from "../../hooks/useDashboardStore";
 
-export default function JuryPanel() {
+interface VotingSectionProps {
+  title: string;
+  role: "jury" | "user";
+}
+
+export default function VotingSection({ title, role }: VotingSectionProps) {
   const { votes, setVotes, criteria, darkMode } = useDashboardStore();
 
   const categories = ["Business Idea", "Business Plan", "Changemaker"];
   const teamsByCategory: Record<string, string[]> = {
     "Business Idea": ["Team Alpha", "Team Spark", "Team Vision"],
     "Business Plan": ["Team Orion", "Team Nova"],
-    "Changemaker": ["Team Impact", "Team Hope"],
+    Changemaker: ["Team Impact", "Team Hope"],
   };
 
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -24,21 +29,31 @@ export default function JuryPanel() {
 
   const handleVote = (points: number) => {
     if (!selectedTeam || !selectedCategory || !selectedCriteria) return;
+
     const key = `${selectedCategory}-${selectedTeam}-${selectedCriteria}`;
     setVotes({ ...votes, [key]: (votes[key] || 0) + points });
-    setSelectedTeam(""); // Reset for next vote
+
+    const verb = role === "jury" ? "gave" : "voted";
+    alert(`✅ You ${verb} ${points} pts to ${selectedTeam} (${selectedCriteria}, ${selectedCategory})`);
+    setSelectedTeam("");
   };
 
   const cardStyle = `p-6 rounded-3xl shadow-lg transition-colors duration-300 ${
-    darkMode ? "bg-gray-800/80 text-white border border-gray-700" : "bg-white text-gray-900 border border-gray-200"
+    darkMode
+      ? "bg-gray-800/80 text-white border border-gray-700"
+      : "bg-white text-gray-900 border border-gray-200"
   }`;
 
-  const selectStyle = `w-full p-3 rounded-xl border shadow-inner cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 appearance-none ${
-    darkMode ? "bg-gray-700 text-white border-gray-600 hover:bg-gray-600" : "bg-gray-100 text-gray-900 border-gray-300 hover:bg-gray-50"
+  const selectStyle = `w-full p-3 rounded-xl border shadow-inner cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+    darkMode
+      ? "bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+      : "bg-gray-100 text-gray-900 border-gray-300 hover:bg-gray-50"
   }`;
 
   const teamCardStyle = `p-5 rounded-2xl shadow-md cursor-pointer transition-transform transform hover:scale-105 ${
-    darkMode ? "bg-gray-700/70 text-gray-200 hover:bg-gray-600/80 hover:text-white" : "bg-gray-100 text-gray-900 hover:bg-blue-50"
+    darkMode
+      ? "bg-gray-700/70 text-gray-200 hover:bg-gray-600/80 hover:text-white"
+      : "bg-gray-100 text-gray-900 hover:bg-blue-50"
   }`;
 
   const buttonStyle =
@@ -46,12 +61,10 @@ export default function JuryPanel() {
 
   return (
     <div className="p-10 space-y-8 max-w-3xl mx-auto">
-      {/* Title */}
       <h2 className="text-4xl font-extrabold text-center mb-10 tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500">
-        Jury Panel
+        {title}
       </h2>
 
-      {/* Category */}
       <div className={cardStyle}>
         <label className="block mb-3 font-semibold text-lg">Select Category</label>
         <select
@@ -71,7 +84,6 @@ export default function JuryPanel() {
         </select>
       </div>
 
-      {/* Teams */}
       {selectedCategory && (
         <div className={cardStyle + " flex flex-wrap gap-4"}>
           {availableTeams.map((team) => (
@@ -86,7 +98,6 @@ export default function JuryPanel() {
         </div>
       )}
 
-      {/* Criteria */}
       {selectedTeam && (
         <div className={cardStyle}>
           <label className="block mb-3 font-semibold text-lg">Select Criteria</label>
@@ -104,7 +115,6 @@ export default function JuryPanel() {
         </div>
       )}
 
-      {/* Voting */}
       {selectedTeam && (
         <div className="flex justify-center gap-4 mt-6">
           {[1, 2, 3, 4, 5].map((pts) => (

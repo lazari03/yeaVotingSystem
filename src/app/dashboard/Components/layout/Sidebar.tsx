@@ -6,10 +6,11 @@ import { useDashboardStore } from "../../hooks/useDashboardStore";
 export default function Sidebar() {
   const { role, setRole, darkMode, toggleDarkMode } = useDashboardStore();
 
-  const panelsByRole: Record<string, string[]> = {
-    admin: ["Admin Panel"],
-    jury: ["Jury Panel"],
-    user: ["User Panel"],
+  // Sections visible inside the single unified panel per role
+  const sectionsByRole: Record<string, string[]> = {
+    admin: ["Users", "Teams", "Competitions", "Jury", "Criteria"],
+    jury: ["Voting"],
+    user: ["Voting"],
   };
 
   const allRoles = ["admin", "jury", "user"] as const;
@@ -40,17 +41,17 @@ export default function Sidebar() {
                 }`}
               onClick={() => setRole(r)}
             >
-              {r.charAt(0).toUpperCase() + r.slice(1)} Panel
+              {r.charAt(0).toUpperCase() + r.slice(1)}
             </button>
           ))}
         </nav>
 
-        {/* Available Panels */}
+        {/* Available Sections (inside unified panel) */}
         <div className="mt-6">
-          <h2 className="font-semibold mb-2 text-gray-400">Available Panels</h2>
+          <h2 className="font-semibold mb-2 text-gray-400">Available Sections</h2>
           <ul className="list-disc pl-5 space-y-1">
-            {panelsByRole[role].map((panel) => (
-              <li key={panel} className="text-sm">{panel}</li>
+            {sectionsByRole[role].map((section) => (
+              <li key={section} className="text-sm">{section}</li>
             ))}
           </ul>
         </div>
