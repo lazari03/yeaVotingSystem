@@ -2,18 +2,12 @@
 import { db } from '../../firebaseConfig/firebase';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 
-interface User {
-  email: string;
-  username: string;
-  role: string;
-}
-
 interface RegisterResult {
   token: string | null;
   message: string;
 }
 
-export const register = async (email: string, username: string, password: string): Promise<RegisterResult> => {
+export const register = async (email: string, username: string): Promise<RegisterResult> => {
   const usersCol = collection(db, 'users');
 
   // Email prüfen
