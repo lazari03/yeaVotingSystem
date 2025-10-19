@@ -22,14 +22,14 @@ const LoginForm: React.FC = () => {
 
       document.cookie = `session=${token}; max-age=${60 * 60 * 24 * 7}; path=/; Secure; SameSite=Strict`;
       window.location.href = "/";
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Verbose console logging for debugging the identitytoolkit 400 response
-      // eslint-disable-next-line no-console
       console.error("Firebase signIn error:", err);
 
       // Try to extract Identity Toolkit response details
-      const tokenResponse = err?.customData?._tokenResponse;
-      const serverMessage = tokenResponse?.error?.message || tokenResponse?.error_description || err?.message;
+      const error = err as { customData?: { _tokenResponse?: { error?: { message?: string }; error_description?: string } }; message?: string };
+      const tokenResponse = error?.customData?._tokenResponse;
+      const serverMessage = tokenResponse?.error?.message || tokenResponse?.error_description || error?.message;
 
       // Map common Identity Toolkit messages to friendlier text
       let friendly = "Login failed. Check your email and password.";
