@@ -1,16 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useDashboardStore } from "../../hooks/useDashboardStore";
 
 interface VotingSectionProps {
   title: string;
   role: "jury" | "user";
+  criteria?: string[];
 }
 
-export default function VotingSection({ title, role }: VotingSectionProps) {
-  const { votes, setVotes, criteria, darkMode } = useDashboardStore();
-
+export default function VotingSection({ title, role, criteria: criteriaProp }: VotingSectionProps) {
+  // Local demo state; replace with real data fetch later
+  const criteria = criteriaProp && criteriaProp.length > 0 ? criteriaProp : ["Creativity", "Impact", "Feasibility"];
   const categories = ["Business Idea", "Business Plan", "Changemaker"];
   const teamsByCategory: Record<string, string[]> = {
     "Business Idea": ["Team Alpha", "Team Spark", "Team Vision"],
@@ -21,6 +21,7 @@ export default function VotingSection({ title, role }: VotingSectionProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTeam, setSelectedTeam] = useState<string>("");
   const [selectedCriteria, setSelectedCriteria] = useState<string>(criteria[0] || "");
+  const [votes, setVotes] = useState<Record<string, number>>({});
 
   const availableTeams = useMemo(
     () => (selectedCategory ? teamsByCategory[selectedCategory] || [] : []),
@@ -31,13 +32,14 @@ export default function VotingSection({ title, role }: VotingSectionProps) {
     if (!selectedTeam || !selectedCategory || !selectedCriteria) return;
 
     const key = `${selectedCategory}-${selectedTeam}-${selectedCriteria}`;
-    setVotes({ ...votes, [key]: (votes[key] || 0) + points });
+    setVotes((prev) => ({ ...prev, [key]: (prev[key] || 0) + points }));
 
     const verb = role === "jury" ? "gave" : "voted";
-    alert(`✅ You ${verb} ${points} pts to ${selectedTeam} (${selectedCriteria}, ${selectedCategory})`);
+    alert(`You ${verb} ${points} pts to ${selectedTeam} (${selectedCriteria}, ${selectedCategory})`);
     setSelectedTeam("");
   };
 
+  const darkMode = false;
   const cardStyle = `p-6 rounded-3xl shadow-lg transition-colors duration-300 ${
     darkMode
       ? "bg-gray-800/80 text-white border border-gray-700"

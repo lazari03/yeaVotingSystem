@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useDashboardStore } from "../../hooks/useDashboardStore";
 import { UsersCard } from "./UsersCard";
 import { TeamsCard } from "./TeamsCard";
 import { CompetitionsCard } from "./CompetitionsCard";
@@ -10,15 +9,14 @@ import { JuryCard } from "./JuryCard";
 import { CriteriaCard } from "./CriteriaCard";
 
 export default function AdminTabs() {
-  const { darkMode, teams, votes, resetVotes } = useDashboardStore();
-
-  // Local state for admin data
+  // Local demo state; replace with real API/auth later
   const [users, setUsers] = useState(["Alice", "Bob"]);
   const [competitions, setCompetitions] = useState(["Competition 1"]);
   const [jury, setJury] = useState(["Jury 1"]);
   const [criteria, setCriteria] = useState(["Creativity"]);
+  const [teams, setTeams] = useState(["Team 1", "Team 2", "Team 3"]);
+  const [votes, setVotes] = useState<Record<string, number>>({});
 
-  // CRUD actions
   const addUser = () => {
     const name = prompt("Enter new user name");
     if (name) setUsers([...users, name]);
@@ -32,7 +30,7 @@ export default function AdminTabs() {
   };
   const addTeam = () => {
     const team = prompt("Enter new team name");
-    if (team) teams.push(team);
+    if (team) setTeams([...teams, team]);
   };
   const addJury = () => {
     const name = prompt("Enter jury member name");
@@ -43,7 +41,6 @@ export default function AdminTabs() {
     if (crit) setCriteria([...criteria, crit]);
   };
 
-  // Export & Reset
   const exportStats = () => {
     const data = JSON.stringify(votes, null, 2);
     const blob = new Blob([data], { type: "application/json" });
@@ -54,10 +51,9 @@ export default function AdminTabs() {
     a.click();
   };
 
-  const handleResetVotes = () => {
-    if (confirm("Are you sure you want to reset all votes?")) resetVotes();
-  };
+  const handleResetVotes = () => setVotes({});
 
+  const darkMode = false;
   const cardStyle = `p-6 rounded-3xl shadow-md transition-all duration-300 transform hover:scale-105 ${
     darkMode
       ? "bg-gray-800/80 text-white border border-gray-700"
@@ -67,11 +63,11 @@ export default function AdminTabs() {
   const buttonStyle =
     "px-4 py-2 rounded-2xl font-semibold shadow-md transition-all transform hover:scale-105 active:scale-95 text-white bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 w-full mb-4";
 
-  const tabs = ["Users", "Teams", "Competitions", "Jury", "Criteria"];
-  const [activeTab, setActiveTab] = useState("Users");
+  const tabs = ["Users", "Teams", "Competitions", "Jury", "Criteria"] as const;
+  const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Users");
 
   return (
-    <div className={`p-10 min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
+    <div className="p-10 min-h-screen bg-gray-50 text-gray-900">
       <h2 className="text-4xl font-extrabold text-center mb-10 tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500">
         Admin Panel
       </h2>
@@ -84,8 +80,6 @@ export default function AdminTabs() {
             className={`px-5 py-2 rounded-2xl font-semibold transition-all duration-300 ${
               activeTab === tab
                 ? "bg-gradient-to-r from-green-500 to-blue-500 text-white shadow-lg"
-                : darkMode
-                ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
                 : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
             }`}
           >
@@ -114,7 +108,13 @@ export default function AdminTabs() {
               />
             )}
             {activeTab === "Teams" && (
-              <TeamsCard teams={teams} addTeam={addTeam} darkMode={darkMode} cardStyle={cardStyle} buttonStyle={buttonStyle} />
+              <TeamsCard
+                teams={teams}
+                addTeam={addTeam}
+                darkMode={darkMode}
+                cardStyle={cardStyle}
+                buttonStyle={buttonStyle}
+              />
             )}
             {activeTab === "Competitions" && (
               <CompetitionsCard
@@ -126,7 +126,13 @@ export default function AdminTabs() {
               />
             )}
             {activeTab === "Jury" && (
-              <JuryCard jury={jury} addJury={addJury} darkMode={darkMode} cardStyle={cardStyle} buttonStyle={buttonStyle} />
+              <JuryCard
+                jury={jury}
+                addJury={addJury}
+                darkMode={darkMode}
+                cardStyle={cardStyle}
+                buttonStyle={buttonStyle}
+              />
             )}
             {activeTab === "Criteria" && (
               <CriteriaCard

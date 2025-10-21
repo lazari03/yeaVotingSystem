@@ -1,23 +1,27 @@
 "use client";
 
 import React from "react";
-import { useDashboardStore } from "./hooks/useDashboardStore";
-import Sidebar from "./Components/layout/Sidebar";
-import UnifiedPanel from "./panels/UnifiedPanel";
+import Sidebar from "@/components/layout/Sidebar";
+import AdminTabs from "@/components/admin/AdminTabs";
+import VotingSection from "@/components/shared/VotingSection";
+
+type Role = "admin" | "jury" | "user";
+function getRole(): Role {
+  // TODO: Wire auth and derive role from session. Hard-coded for now.
+  return "admin";
+}
 
 export default function Page() {
-  const { role, darkMode } = useDashboardStore();
-
-  const renderPanel = () => <UnifiedPanel />;
+  const role = getRole();
 
   return (
-    <div
-      className={`flex min-h-screen transition-colors duration-300 ${
-        darkMode ? "bg-gray-950 text-white" : "bg-gray-50 text-gray-900"
-      }`}
-    >
-      <Sidebar />
-      <main className="flex-1 p-6 overflow-y-auto">{renderPanel()}</main>
+    <div className="flex min-h-screen bg-gray-50 text-gray-900">
+      <Sidebar role={role} />
+      <main className="flex-1 p-6 overflow-y-auto">
+        {role === "admin" && <AdminTabs />}
+        {role === "jury" && <VotingSection role="jury" title="Jury Panel" />}
+        {role === "user" && <VotingSection role="user" title="User Panel" />}
+      </main>
     </div>
   );
 }
