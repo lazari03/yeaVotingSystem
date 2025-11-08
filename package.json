@@ -9,15 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
-<<<<<<< HEAD
+    "@heroicons/react": "^2.2.0",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.2.3",
     "firebase": "^12.4.0",
-    "next": "15.5.4",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
-=======
-    "@heroicons/react": "^2.2.0",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.546.0",
     "next": "15.5.4",
@@ -25,15 +20,11 @@
     "react-dom": "19.1.0",
     "recharts": "^3.3.0",
     "zustand": "^5.0.8"
->>>>>>> dfc20fb (created dashboard ui)
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-<<<<<<< HEAD
     "@types/bcrypt": "^6.0.0",
-=======
->>>>>>> dfc20fb (created dashboard ui)
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
