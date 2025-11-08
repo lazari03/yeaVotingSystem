@@ -5,12 +5,11 @@ import React from "react";
 interface Props {
   criteria: string[];
   addCriteria: () => void;
-  darkMode: boolean;
   cardStyle: string;
   buttonStyle: string;
 }
 
-function CriteriaCard({ criteria, addCriteria, darkMode, cardStyle, buttonStyle }: Props) {
+function CriteriaCard({ criteria, addCriteria, cardStyle, buttonStyle }: Props) {
   return (
     <div className={cardStyle}>
       <h3 className="font-semibold mb-4 text-xl border-b border-gray-300 pb-1 dark:border-gray-600">Criteria</h3>

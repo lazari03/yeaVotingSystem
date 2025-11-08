@@ -5,8 +5,6 @@ import React from "react";
 type Role = "admin" | "jury" | "user";
 
 export default function Sidebar({ role = "admin" }: { role?: Role }) {
-  const darkMode = false;
-
   const sectionsByRole: Record<Role, string[]> = {
     admin: ["Users", "Teams", "Competitions", "Jury", "Criteria"],
     jury: ["Voting"],
@@ -15,8 +13,7 @@ export default function Sidebar({ role = "admin" }: { role?: Role }) {
 
   return (
     <aside
-      className={`w-64 min-h-screen p-6 flex flex-col justify-between transition-colors duration-300
-        ${darkMode ? "bg-gray-900 text-white" : "bg-white text-gray-900 shadow-lg"}`}
+      className="w-64 min-h-screen p-6 flex flex-col justify-between transition-colors duration-300 bg-white text-gray-900 shadow-lg"
     >
       <div>
         <h1 className="text-3xl font-extrabold mb-8 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500">

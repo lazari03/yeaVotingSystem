@@ -5,12 +5,11 @@ import React from "react";
 interface Props {
   jury: string[];
   addJury: () => void;
-  darkMode: boolean;
   cardStyle: string;
   buttonStyle: string;
 }
 
-function JuryCard({ jury, addJury, darkMode, cardStyle, buttonStyle }: Props) {
+function JuryCard({ jury, addJury, cardStyle, buttonStyle }: Props) {
   return (
     <div className={cardStyle}>
       <h3 className="font-semibold mb-4 text-xl border-b border-gray-300 pb-1 dark:border-gray-600">Jury</h3>
