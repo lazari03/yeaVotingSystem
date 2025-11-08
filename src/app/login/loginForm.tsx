@@ -3,8 +3,10 @@
 import React, { useState } from "react";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import app from "../../firebaseConfig/firebase";
+import { useRouter } from "next/navigation";
 
 const LoginForm: React.FC = () => {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ const LoginForm: React.FC = () => {
       const token = await userCredential.user.getIdToken();
 
       document.cookie = `session=${token}; max-age=${60 * 60 * 24 * 7}; path=/; Secure; SameSite=Strict`;
-      window.location.href = "/";
+      router.push("/dashboard");
     } catch (err: unknown) {
       // Verbose console logging for debugging the identitytoolkit 400 response
       console.error("Firebase signIn error:", err);
