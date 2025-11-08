@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Role } from "@/utils/Roles";
 
 interface VotingSectionProps {
   title: string;
-  role: "jury" | "user";
+  role: Role.Jury | Role.User;
   criteria?: string[];
 }
 
@@ -34,7 +35,7 @@ export default function VotingSection({ title, role, criteria: criteriaProp }: V
     const key = `${selectedCategory}-${selectedTeam}-${selectedCriteria}`;
     setVotes((prev) => ({ ...prev, [key]: (prev[key] || 0) + points }));
 
-    const verb = role === "jury" ? "gave" : "voted";
+    const verb = role === Role.Jury ? "gave" : "voted";
     alert(`You ${verb} ${points} pts to ${selectedTeam} (${selectedCriteria}, ${selectedCategory})`);
     setSelectedTeam("");
   };

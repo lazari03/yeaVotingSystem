@@ -3,14 +3,13 @@
 import React from "react";
 import AdminTabs from "@/components/admin/AdminTabs";
 import VotingSection from "@/components/shared/VotingSection";
+import { Role } from "@/utils/Roles";
 
-type Role = "admin" | "jury" | "user";
-
-export default function UnifiedPanel({ role = "admin" }: { role?: Role }) {
+export default function UnifiedPanel({ role = Role.Admin }: { role?: Role }) {
   const renderByRole = () => {
-    if (role === "admin") return <AdminTabs />;
-    if (role === "jury") return <VotingSection role="jury" title="Jury Panel" />;
-    if (role === "user") return <VotingSection role="user" title="User Panel" />;
+    if (role === Role.Admin) return <AdminTabs />;
+    if (role === Role.Jury) return <VotingSection role={Role.Jury} title="Jury Panel" />;
+    if (role === Role.User) return <VotingSection role={Role.User} title="User Panel" />;
     return <div className="p-6">No role selected</div>;
   };
 

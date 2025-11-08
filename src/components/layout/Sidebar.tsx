@@ -1,14 +1,13 @@
 "use client";
 
 import React from "react";
+import { Role } from "@/utils/Roles";
 
-type Role = "admin" | "jury" | "user";
-
-export default function Sidebar({ role = "admin" }: { role?: Role }) {
+export default function Sidebar({ role = Role.Admin }: { role?: Role }) {
   const sectionsByRole: Record<Role, string[]> = {
-    admin: ["Users", "Teams", "Competitions", "Jury", "Criteria"],
-    jury: ["Voting"],
-    user: ["Voting"],
+    [Role.Admin]: ["Users", "Teams", "Competitions", "Jury", "Criteria"],
+    [Role.Jury]: ["Voting"],
+    [Role.User]: ["Voting"],
   };
 
   return (
