@@ -19,22 +19,8 @@ import { revertVote } from '@/application/use-cases/revertVote';
 import { createAuthUser } from '@/application/auth-helpers';
 import { signOut } from 'firebase/auth';
 import { auth as firebaseAuth } from '@/lib/firebase';
-import dynamic from 'next/dynamic';
-
-const BarChart = dynamic(() => import('rechart').then(mod => mod.BarChart), { ssr: false });
-const Bar = dynamic(() => import('rechart').then(mod => mod.Bar), { ssr: false });
-const XAxis = dynamic(() => import('rechart').then(mod => mod.XAxis), { ssr: false });
-const YAxis = dynamic(() => import('rechart').then(mod => mod.YAxis), { ssr: false });
-const CartesianGrid = dynamic(() => import('rechart').then(mod => mod.CartesianGrid), { ssr: false });
-const Tooltip = dynamic(() => import('rechart').then(mod => mod.Tooltip), { ssr: false });
-const ResponsiveContainer = dynamic(() => import('rechart').then(mod => mod.ResponsiveContainer), { ssr: false });
-const PieChart = dynamic(() => import('rechart').then(mod => mod.PieChart), { ssr: false });
-const Pie = dynamic(() => import('rechart').then(mod => mod.Pie), { ssr: false });
-const Cell = dynamic(() => import('rechart').then(mod => mod.Cell), { ssr: false });
 
 type TabType = 'teams' | 'votes' | 'leaderboard' | 'logs' | 'jury' | 'criteria' | 'stats';
-
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -471,77 +457,32 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Charts */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Scores by Team */}
-                        <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-700/50">
-                          <h3 className="text-white font-medium mb-4">Average Scores by Team</h3>
-                          <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={stats.votesByTeam}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
-                                <YAxis stroke="#94a3b8" fontSize={12} />
-                                <Tooltip 
-                                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                                  labelStyle={{ color: '#fff' }}
-                                />
-                                <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </div>
-                        </div>
-
-                        {/* Votes by Jury */}
-                        <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-700/50">
-                          <h3 className="text-white font-medium mb-4">Votes by Jury</h3>
-                          <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie
-                                  data={stats.votesByJury}
-                                  cx="50%"
-                                  cy="50%"
-                                  innerRadius={50}
-                                  outerRadius={80}
-                                  paddingAngle={5}
-                                  dataKey="votes"
-                                  nameKey="name"
-                                  label={({ name, votes }: { name: string; votes: number }) => `${name}: ${votes}`}
-                                >
-                                  {stats.votesByJury.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                  ))}
-                                </Pie>
-                                <Tooltip 
-                                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                                />
-                              </PieChart>
-                            </ResponsiveContainer>
-                          </div>
-                        </div>
-
-                        {/* Criteria Performance */}
-                        {stats.criteriaChartData.length > 0 && (
-                          <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-700/50 col-span-1 md:col-span-2">
-                            <h3 className="text-white font-medium mb-4">Criteria Average Scores</h3>
-                            <div className="h-64">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={stats.criteriaChartData} layout="vertical">
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                  <XAxis type="number" stroke="#94a3b8" fontSize={12} />
-                                  <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={12} width={100} />
-                                  <Tooltip 
-                                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                                    labelStyle={{ color: '#fff' }}
-                                    formatter={(value: number) => [`${Number(value).toFixed(1)}`, 'Average']}
-                                  />
-                                  <Bar dataKey="average" fill="#10b981" radius={[0, 4, 4, 0]} />
-                                </BarChart>
-                              </ResponsiveContainer>
+                      {/* Team Scores Table */}
+                      <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-700/50">
+                        <h3 className="text-white font-medium mb-4">Team Scores</h3>
+                        <div className="space-y-2">
+                          {stats.votesByTeam.map((team, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50">
+                              <span className="text-white">{team.name}</span>
+                              <span className="text-blue-400 font-medium">{team.score} pts ({team.votes} votes)</span>
                             </div>
-                          </div>
-                        )}
+                          ))}
+                          {stats.votesByTeam.length === 0 && <p className="text-slate-500">No votes yet</p>}
+                        </div>
+                      </div>
+
+                      {/* Jury Activity */}
+                      <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-700/50">
+                        <h3 className="text-white font-medium mb-4">Jury Activity</h3>
+                        <div className="space-y-2">
+                          {stats.votesByJury.map((jury, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50">
+                              <span className="text-white">{jury.name}</span>
+                              <span className="text-emerald-400 font-medium">{jury.votes} votes</span>
+                            </div>
+                          ))}
+                          {stats.votesByJury.length === 0 && <p className="text-slate-500">No jury activity yet</p>}
+                        </div>
                       </div>
                     </div>
                   )}
