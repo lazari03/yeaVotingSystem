@@ -1,19 +1,33 @@
-import Link from "next/link";
+'use client';
+
+import { useEffect } from 'react';
+import { useAuth } from '@/presentation/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace('/login');
+    } else if (user.role === 'admin') {
+      router.replace('/admin');
+    } else {
+      router.replace('/jury');
+    }
+  }, [user, loading, router]);
+
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-sky-50 to-white p-6">
-      <div className="max-w-xl w-full bg-white/90 dark:bg-gray-900/80 backdrop-blur-md rounded-xl shadow-lg p-10 text-center">
-        <h1 className="text-3xl font-bold mb-4">Welcome to Yea Voting System</h1>
-        <p className="text-gray-600 dark:text-gray-300 mb-6">
-          Secure, simple voting for your community. Sign in to access your dashboard and cast votes.
-        </p>
-        <Link href="/login" className="inline-block">
-          <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md">
-            Go to Login
-          </button>
-        </Link>
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="flex items-center gap-3 text-slate-400">
+        <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
+        <span className="text-sm font-medium">Loading...</span>
       </div>
-    </main>
+    </div>
   );
 }
