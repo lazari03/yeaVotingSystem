@@ -1,7 +1,7 @@
 import { User } from '@/domain/entities/User';
 import { IUserRepository } from '@/domain/repositories/IUserRepository';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, getDocs, query, where, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc } from 'firebase/firestore';
 
 export class UserRepository implements IUserRepository {
   private collectionName = 'users';
@@ -35,6 +35,12 @@ export class UserRepository implements IUserRepository {
   async getAll(): Promise<User[]> {
     const querySnapshot = await getDocs(collection(db, this.collectionName));
     return querySnapshot.docs.map(doc => doc.data() as User);
+  }
+
+  async update(user: User): Promise<User> {
+    const docRef = doc(db, this.collectionName, user.id);
+    await updateDoc(docRef, { ...user });
+    return user;
   }
 
   async getJuryMembers(): Promise<User[]> {

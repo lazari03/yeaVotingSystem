@@ -7,3 +7,5 @@ export * from './getTeamsForEvent';
 export * from './getLeaderboard';
 export * from './getVotesRealtime';
 export * from './revertVote';
+export * from './importTeamsFromJSON';
+export * from './submitPackVote';

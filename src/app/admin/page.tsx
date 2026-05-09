@@ -15,7 +15,9 @@ import { createEvent } from '@/application/use-cases/createEvent';
 import { createJuryUser } from '@/application/use-cases/createJuryUser';
 import { createTeam } from '@/application/use-cases/createTeam';
 import { importCriteriaFromJSON, CriteriaJSON } from '@/application/use-cases/importCriteriaFromJSON';
+import { importTeamsFromJSON, TeamJSON } from '@/application/use-cases/importTeamsFromJSON';
 import { revertVote } from '@/application/use-cases/revertVote';
+import { PackVote } from '@/domain/entities/PackVote';
 import { createAuthUser } from '@/application/auth-helpers';
 import { signOut } from 'firebase/auth';
 import { auth as firebaseAuth } from '@/lib/firebase';
@@ -34,13 +36,18 @@ export default function AdminPage() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [juryMembers, setJuryMembers] = useState<User[]>([]);
+  const [packVotes, setPackVotes] = useState<PackVote[]>([]);
   
   const [newEventName, setNewEventName] = useState('');
   const [newTeamName, setNewTeamName] = useState('');
+  const [newTeamCategory, setNewTeamCategory] = useState('');
   const [juryName, setJuryName] = useState('');
   const [juryEmail, setJuryEmail] = useState('');
   const [juryPassword, setJuryPassword] = useState('');
   const [criteriaJson, setCriteriaJson] = useState('');
+  const [teamsJson, setTeamsJson] = useState('');
+  const [selectedJury, setSelectedJury] = useState<User | null>(null);
+  const [juryCategoryInput, setJuryCategoryInput] = useState('');
   
   const [activeTab, setActiveTab] = useState<TabType>('stats');
   const [loading, setLoading] = useState(false);
@@ -84,16 +91,18 @@ export default function AdminPage() {
 
   async function loadEventData(eventId: string) {
     const container = getContainer();
-    const [eventTeams, eventCriteria, eventVotes, allLogs] = await Promise.all([
+    const [eventTeams, eventCriteria, eventVotes, allLogs, eventPackVotes] = await Promise.all([
       container.teamRepository.getByEventId(eventId),
       container.criteriaRepository.getByEventId(eventId),
       container.voteRepository.getByEventId(eventId),
       container.logRepository.getAll(),
+      container.packVoteRepository.getByEventId(eventId),
     ]);
     setTeams(eventTeams);
     setCriteria(eventCriteria);
     setVotes(eventVotes);
     setLogs(allLogs);
+    setPackVotes(eventPackVotes);
 
     const lb = await getLeaderboard(
       { eventId },
@@ -130,13 +139,55 @@ export default function AdminPage() {
     try {
       const container = getContainer();
       const team = await createTeam(
-        { eventId: selectedEvent.id, name: newTeamName },
+        { eventId: selectedEvent.id, name: newTeamName, category: newTeamCategory.trim() },
         { teamRepository: container.teamRepository }
       );
       setTeams([...teams, team]);
       setNewTeamName('');
+      setNewTeamCategory('');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create team';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleImportTeams() {
+    if (!selectedEvent || !teamsJson.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const parsed: TeamJSON[] = JSON.parse(teamsJson);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error('Invalid teams format');
+      }
+      const container = getContainer();
+      const imported = await importTeamsFromJSON(
+        { eventId: selectedEvent.id, teams: parsed },
+        { teamRepository: container.teamRepository }
+      );
+      setTeams([...teams, ...imported]);
+      setTeamsJson('');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Invalid JSON format';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUpdateJuryCategory() {
+    if (!selectedJury) return;
+    setLoading(true);
+    setError('');
+    try {
+      const container = getContainer();
+      const updated = await container.userRepository.update({ ...selectedJury, category: juryCategoryInput.trim() });
+      setJuryMembers(juryMembers.map(j => j.id === updated.id ? updated : j));
+      setSelectedJury(updated);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update jury category';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -241,6 +292,26 @@ export default function AdminPage() {
 
     return { totalVotes, activeVotes, avgScore, votesByTeam, votesByJury, criteriaChartData };
   }, [votes, teams, juryMembers, criteria]);
+
+  const teamCategories = useMemo(() => {
+    const cats = teams.map(t => t.category).filter((c): c is string => !!c);
+    return Array.from(new Set(cats)).sort();
+  }, [teams]);
+
+  // Pack winners: for each pack name, find the team with the most votes
+  const packWinners = useMemo(() => {
+    const packNames = Array.from(new Set(packVotes.map(pv => pv.packName)));
+    return packNames.map(packName => {
+      const pvForPack = packVotes.filter(pv => pv.packName === packName);
+      const counts: Record<string, number> = {};
+      pvForPack.forEach(pv => { counts[pv.teamId] = (counts[pv.teamId] ?? 0) + 1; });
+      const topTeamId = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      const topTeam = teams.find(t => t.id === topTeamId);
+      const topCount = topTeamId ? counts[topTeamId] : 0;
+      const juryWhoVoted = pvForPack.map(pv => juryMembers.find(j => j.id === pv.juryId)?.name ?? pv.juryId);
+      return { packName, team: topTeam ?? null, votes: topCount, total: pvForPack.length, juryWhoVoted };
+    });
+  }, [packVotes, teams, juryMembers]);
 
   const tabs: { id: TabType; label: string }[] = [
     { id: 'stats', label: 'Stats' },
@@ -389,15 +460,37 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Import Teams */}
+              {selectedEvent && (
+                <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
+                  <h2 className="text-lg font-semibold text-white mb-1">Import Teams</h2>
+                  <p className="text-xs text-slate-500 mb-3">JSON array of teams</p>
+                  <textarea
+                    placeholder='[{"name": "Team Alpha", "category": "Software"}]'
+                    value={teamsJson}
+                    onChange={(e) => setTeamsJson(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 h-24 resize-none font-mono"
+                  />
+                  <button
+                    onClick={handleImportTeams}
+                    disabled={loading}
+                    className="w-full mt-3 py-2.5 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    Import Teams
+                  </button>
+                </div>
+              )}
+
               {/* Import Criteria */}
               {selectedEvent && (
                 <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-                  <h2 className="text-lg font-semibold text-white mb-4">Import Criteria</h2>
+                  <h2 className="text-lg font-semibold text-white mb-1">Import Criteria</h2>
+                  <p className="text-xs text-slate-500 mb-3">JSON array of criteria</p>
                   <textarea
                     placeholder='[{"title": "Innovation", "maxScore": 10}]'
                     value={criteriaJson}
                     onChange={(e) => setCriteriaJson(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 h-24 resize-none"
+                    className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 h-24 resize-none font-mono"
                   />
                   <button
                     onClick={handleImportCriteria}
@@ -484,19 +577,82 @@ export default function AdminPage() {
                           {stats.votesByJury.length === 0 && <p className="text-slate-500">No jury activity yet</p>}
                         </div>
                       </div>
+
+                      {/* Pack Winners */}
+                      {packWinners.length > 0 && (
+                        <div className="space-y-3">
+                          <h3 className="text-white font-medium">Pack Awards</h3>
+                          {packWinners.map(pw => (
+                            <div
+                              key={pw.packName}
+                              className={`rounded-xl border p-4 ${pw.packName.toLowerCase().includes('startup') ? 'bg-blue-500/8 border-blue-500/25' : 'bg-purple-500/8 border-purple-500/25'}`}
+                            >
+                              <div className="flex items-center gap-2 mb-3">
+                                <svg className={`w-4 h-4 flex-shrink-0 ${pw.packName.toLowerCase().includes('startup') ? 'text-blue-400' : 'text-purple-400'}`} fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <span className={`text-xs font-semibold uppercase tracking-wider ${pw.packName.toLowerCase().includes('startup') ? 'text-blue-400' : 'text-purple-400'}`}>
+                                  {pw.packName}
+                                </span>
+                                <span className="text-xs text-slate-600 ml-auto">{pw.total} vote{pw.total !== 1 ? 's' : ''} cast</span>
+                              </div>
+
+                              {pw.team ? (
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-lg font-bold text-white">{pw.team.name}</p>
+                                    {pw.team.category && (
+                                      <p className="text-xs text-slate-500 mt-0.5">{pw.team.category}</p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <p className={`text-xl font-bold tabular-nums ${pw.packName.toLowerCase().includes('startup') ? 'text-blue-400' : 'text-purple-400'}`}>
+                                      {pw.votes}
+                                    </p>
+                                    <p className="text-xs text-slate-600">pack vote{pw.votes !== 1 ? 's' : ''}</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-slate-500 text-sm">No votes yet</p>
+                              )}
+
+                              {/* Who voted */}
+                              {pw.juryWhoVoted.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-slate-700/40">
+                                  <p className="text-xs text-slate-500 mb-1.5">Voted by</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {pw.juryWhoVoted.map((name, i) => (
+                                      <span key={i} className="px-2 py-0.5 bg-slate-800 text-slate-400 text-xs rounded-md">
+                                        {name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {/* Teams Tab */}
                   {activeTab === 'teams' && (
                     <div>
-                      <div className="flex gap-3 mb-6">
+                      <div className="flex flex-wrap gap-3 mb-6">
                         <input
                           type="text"
                           placeholder="Team name"
                           value={newTeamName}
                           onChange={(e) => setNewTeamName(e.target.value)}
-                          className="flex-1 px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                          className="flex-1 min-w-32 px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Category (optional)"
+                          value={newTeamCategory}
+                          onChange={(e) => setNewTeamCategory(e.target.value)}
+                          className="flex-1 min-w-32 px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                         />
                         <button
                           onClick={handleCreateTeam}
@@ -508,12 +664,17 @@ export default function AdminPage() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {teams.map((team) => (
-                          <div key={team.id} className="p-4 bg-slate-900/30 rounded-xl border border-slate-700/50">
+                          <div key={team.id} className="p-4 bg-slate-900/30 rounded-xl border border-slate-700/50 flex items-center justify-between">
                             <h3 className="font-medium text-white">{team.name}</h3>
+                            {team.category && (
+                              <span className="px-2.5 py-1 bg-blue-500/15 text-blue-400 text-xs rounded-lg font-medium">
+                                {team.category}
+                              </span>
+                            )}
                           </div>
                         ))}
                         {teams.length === 0 && (
-                          <p className="text-slate-500 col-span-2 text-center py-8">No teams yet. Add a team to get started.</p>
+                          <p className="text-slate-500 col-span-2 text-center py-8">No teams yet. Add a team or import via JSON.</p>
                         )}
                       </div>
                     </div>
@@ -595,18 +756,34 @@ export default function AdminPage() {
                         {juryMembers.map((jury) => {
                           const juryVotes = votes.filter(v => v.juryId === jury.id && v.isActive).length;
                           return (
-                            <div key={jury.id} className="p-4 bg-slate-900/30 rounded-xl border border-slate-700/50">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                            <button
+                              key={jury.id}
+                              onClick={() => { setSelectedJury(jury); setJuryCategoryInput(jury.category ?? ''); }}
+                              className="p-4 bg-slate-900/30 rounded-xl border border-slate-700/50 text-left hover:border-slate-500/60 hover:bg-slate-900/50 transition-all group"
+                            >
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
                                   <span className="text-emerald-400 font-medium">{jury.name.charAt(0)}</span>
                                 </div>
-                                <div>
-                                  <h3 className="font-medium text-white">{jury.name}</h3>
-                                  <p className="text-xs text-slate-400">{jury.email}</p>
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="font-medium text-white truncate">{jury.name}</h3>
+                                  <p className="text-xs text-slate-400 truncate">{jury.email}</p>
                                 </div>
+                                <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
                               </div>
-                              <p className="text-sm text-slate-400">{juryVotes} votes cast</p>
-                            </div>
+                              <div className="flex items-center justify-between">
+                                {jury.category ? (
+                                  <span className="px-2.5 py-1 bg-blue-500/15 text-blue-400 text-xs rounded-lg font-medium">
+                                    {jury.category}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-slate-600 italic">No category</span>
+                                )}
+                                <span className="text-xs text-slate-500">{juryVotes} votes</span>
+                              </div>
+                            </button>
                           );
                         })}
                         {juryMembers.length === 0 && (
@@ -672,6 +849,130 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {/* Jury Profile Modal */}
+      {selectedJury && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) { setSelectedJury(null); setJuryCategoryInput(''); } }}
+        >
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700/60">
+              <h2 className="text-base font-semibold text-white">Jury Profile</h2>
+              <button
+                onClick={() => { setSelectedJury(null); setJuryCategoryInput(''); }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Profile info */}
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-emerald-400 text-xl font-semibold">{selectedJury.name.charAt(0)}</span>
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-base">{selectedJury.name}</p>
+                  <p className="text-slate-400 text-sm">{selectedJury.email}</p>
+                  <p className="text-slate-500 text-xs mt-0.5">
+                    {votes.filter(v => v.juryId === selectedJury.id && v.isActive).length} votes cast
+                  </p>
+                </div>
+              </div>
+
+              {/* Category assignment */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-300">
+                  Assigned Category
+                </label>
+                <p className="text-xs text-slate-500">
+                  This jury member will only see teams in the selected category.
+                </p>
+
+                {/* Category pills from existing teams */}
+                {teamCategories.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setJuryCategoryInput('')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                        juryCategoryInput === ''
+                          ? 'bg-slate-600 border-slate-500 text-white'
+                          : 'bg-transparent border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      All teams
+                    </button>
+                    {teamCategories.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setJuryCategoryInput(cat)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                          juryCategoryInput === cat
+                            ? 'bg-blue-500/30 border-blue-500/60 text-blue-300'
+                            : 'bg-transparent border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Free-text fallback */}
+                <input
+                  type="text"
+                  placeholder="Or type a category name…"
+                  value={juryCategoryInput}
+                  onChange={(e) => setJuryCategoryInput(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+
+                {/* Preview of what the jury will see */}
+                {juryCategoryInput && (
+                  <div className="p-3 bg-slate-900/40 rounded-xl border border-slate-700/50">
+                    <p className="text-xs text-slate-400 mb-2">Teams visible to this jury:</p>
+                    {teams.filter(t => t.category === juryCategoryInput).length > 0 ? (
+                      <ul className="space-y-1">
+                        {teams.filter(t => t.category === juryCategoryInput).map(t => (
+                          <li key={t.id} className="flex items-center gap-2 text-xs text-white">
+                            <span className="w-1 h-1 rounded-full bg-emerald-400 flex-shrink-0" />
+                            {t.name}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-slate-600 italic">No teams with this category yet.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal footer */}
+            <div className="px-6 py-4 border-t border-slate-700/60 flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setSelectedJury(null); setJuryCategoryInput(''); }}
+                className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateJuryCategory}
+                disabled={loading}
+                className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Saving…' : 'Save Category'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

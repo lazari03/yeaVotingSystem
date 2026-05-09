@@ -5,5 +5,6 @@ export interface IUserRepository {
   getById(id: string): Promise<User | null>;
   getByEmail(email: string): Promise<User | null>;
   getAll(): Promise<User[]>;
+  update(user: User): Promise<User>;
   getJuryMembers(): Promise<User[]>;
 }
